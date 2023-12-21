@@ -7,15 +7,17 @@ input = file.read
 file.close
 
 # this is a symbol?
-def is_symbol(input_str)
-  if input_str.length <= 0 then
-    false
+def parse_symbol(input_str)
+  if input_str and input_str.match?(/\.|\d/) then
+    nil
+  elsif input_str.match?(/\*/)
+    :gear
   else
-    input_str.match?(/[^\.|\d]/)
+    :symbol
   end
 end
 
-def check_engine_number(input_lines, token)
+def parse_engine_number(input_lines, token)
   token => [engine_number, [line_number, match_index, match_length]]
   total_lines = input_lines.length
 
@@ -23,41 +25,50 @@ def check_engine_number(input_lines, token)
 
   line_numbers = [[0, line_number - 1].max, line_number, [line_number + 1, total_lines - 1].min].uniq
 
-  puts JSON.dump(line_numbers)
+  # puts JSON.dump(line_numbers)
 
-  is_engine_number = line_numbers.map do |current_line|
+  is_engine_number = line_numbers.filter_map do |current_line|
     if current_line == line_number
       # check -1 and +1 only
-      left = match_index > 0 ? input_lines[current_line][match_index - 1] : ""
-      right = (match_index + match_length) < input_lines[current_line].length ? input_lines[current_line][match_index + match_length] : ""
+      left = match_index > 0 ? match_index - 1 : nil
+      right = (match_index + match_length) < input_lines[current_line].length ? match_index + match_length : nil
 
-      puts JSON.dump([left, right])
+      # puts JSON.dump([left, right])
 
-      is_symbol(left) or is_symbol(right)
+      results = [left, right].filter_map { |index| symbol = !index.nil? && parse_symbol(input_lines[current_line][index]); [current_line, index, symbol] if symbol }
+
+      puts JSON.dump(results)
+
+      results
     else
+      start_index = [0, match_index - 1].max
+      end_index = match_length + 2
+
       # check -1 ...<length_of_word>... +1
       check_slice = input_lines[current_line]
-      .slice([0, match_index - 1].max, match_length + 2)
+      .slice(start_index, end_index)
 
       puts JSON.dump(check_slice)
 
-      check_slice
-      .split('').reduce(false) { |next_to_symbol, char| next_to_symbol or is_symbol(char) }
+      results = check_slice
+      .split('').filter_map.with_index { |char, index| symbol = parse_symbol(char); [current_line, index + start_index, symbol] if symbol }
+
+      puts JSON.dump(results)
+
+      results
     end
-  end.any?
+  end
 
-  puts is_engine_number
-
-  is_engine_number
+  [engine_number, is_engine_number.reduce(:concat)]
 end
 
-# Simple lexer returns a list of [number, [{line_number}, {match_index}, {match_length}]]
+# Simple lexer returns list of tokens of [engine_number, [{line_number}, {match_index}, {match_length}]]
 # it should provide enough info to check adjecent characters for symbols
 def lexer(input_lines)
   input_lines.map.with_index do |line, line_number|
     tokens = []
     line.scan(/\d+/) do |c|
-      tokens << [c.to_i, [line_number, $~.offset(0)[0], c.length]]
+      tokens << [c.to_i, [line_number, Regexp.last_match.offset(0)[0], c.length]]
     end
     tokens
   end
@@ -67,6 +78,30 @@ end
 input_lines = input.split(/\n/)
 tokens = lexer(input_lines)
 
-engine_numbers = tokens.filter_map { |token| token[0] if check_engine_number(input_lines, token) }
-puts JSON.dump(engine_numbers)
-puts JSON.dump(engine_numbers.reduce(:+))
+engine_numbers = tokens
+.filter_map { |token| parse_engine_number(input_lines, token) }
+.filter { |token| token[1].length > 0 }
+
+# puts JSON.dump(engine_numbers)
+# puts JSON.dump(engine_numbers.map { |token| token[0] }.reduce(:+))
+
+engine_gear_numbers = engine_numbers.filter { |token| token[1].select { |symbol| symbol[2] == :gear }.first }
+
+engine_gears = {}
+
+for engine_gear_number in engine_gear_numbers do
+  engine_gear_number => [engine_number, symbols]
+
+  for symbol in symbols.filter { |symbol| symbol[2] == :gear } do
+    symbol => [match_index, line_index, symbol_type]
+    symbol_id = "#{match_index}-#{line_index}-#{symbol_type}"
+
+    if not engine_gears[symbol_id] then
+      engine_gears[symbol_id] = []
+    end
+
+    engine_gears[symbol_id].push(engine_number)
+  end
+end
+
+puts JSON.dump(engine_gears.to_a.filter { |key, value| value.length > 1 }.map { |_, value| value.reduce(:*) }.reduce(:+))
