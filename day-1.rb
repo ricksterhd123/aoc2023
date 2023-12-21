@@ -17,7 +17,7 @@ lines = input.split(/\n/, -1).map do |line|
     'eight' => 8,
     'nine' => 9
   }
-  decoded_line = line.scan(line_regex).flatten.compact.filter { |x| line_regex.match?(x) }.map { |x| number_map[x] || x.to_i }
+  decoded_line = line.scan(line_regex).flatten.compact.map { |x| number_map[x] || x.to_i }
   pair = [decoded_line[0], decoded_line[decoded_line.length - 1]].reverse
   pair.map.with_index { |x, i| x.to_i * (10 ** i) }.reduce(:+)
 end
