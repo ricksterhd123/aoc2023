@@ -6,8 +6,8 @@ file = File.open(INPUT_FILE)
 input = file.read
 file.close
 
-# this is a symbol?
-def parse_symbol(input_str)
+# is this a gear or symbol?
+def lex_symbol(input_str)
   if input_str and input_str.match?(/\.|\d/) then
     nil
   elsif input_str.match?(/\*/)
@@ -17,55 +17,38 @@ def parse_symbol(input_str)
   end
 end
 
-def parse_engine_number(input_lines, token)
+# lex an engine_number, check adjacent characters on lines above and below, including it's own
+def lex_engine_number(input_lines, token)
   token => [engine_number, [line_number, match_index, match_length]]
   total_lines = input_lines.length
 
-  puts engine_number
-
   line_numbers = [[0, line_number - 1].max, line_number, [line_number + 1, total_lines - 1].min].uniq
 
-  # puts JSON.dump(line_numbers)
-
-  is_engine_number = line_numbers.filter_map do |current_line|
+  symbols = line_numbers.filter_map do |current_line|
     if current_line == line_number
       # check -1 and +1 only
       left = match_index > 0 ? match_index - 1 : nil
       right = (match_index + match_length) < input_lines[current_line].length ? match_index + match_length : nil
-
-      # puts JSON.dump([left, right])
-
-      results = [left, right].filter_map { |index| symbol = !index.nil? && parse_symbol(input_lines[current_line][index]); [current_line, index, symbol] if symbol }
-
-      puts JSON.dump(results)
-
-      results
+      [left, right].filter_map { |index| symbol = !index.nil? && lex_symbol(input_lines[current_line][index]); [current_line, index, symbol] if symbol }
     else
       start_index = [0, match_index - 1].max
       end_index = match_length + 2
 
       # check -1 ...<length_of_word>... +1
-      check_slice = input_lines[current_line]
+      input_lines[current_line]
       .slice(start_index, end_index)
-
-      puts JSON.dump(check_slice)
-
-      results = check_slice
-      .split('').filter_map.with_index { |char, index| symbol = parse_symbol(char); [current_line, index + start_index, symbol] if symbol }
-
-      puts JSON.dump(results)
-
-      results
+      .split('').filter_map.with_index { |char, index| symbol = lex_symbol(char); [current_line, index + start_index, symbol] if symbol }
     end
   end
 
-  [engine_number, is_engine_number.reduce(:concat)]
+  [engine_number, symbols.reduce(:concat)]
 end
 
-# Simple lexer returns list of tokens of [engine_number, [{line_number}, {match_index}, {match_length}]]
-# it should provide enough info to check adjecent characters for symbols
-def lexer(input_lines)
-  input_lines.map.with_index do |line, line_number|
+# Simple lexer returns list of engine_numbers that have symbols adjacent (by definition)
+# returns [[engine_number, symbols[]]]
+def lexer(input)
+  input_lines = input.split(/\n/)
+  tokens = input_lines.map.with_index do |line, line_number|
     tokens = []
     line.scan(/\d+/) do |c|
       tokens << [c.to_i, [line_number, Regexp.last_match.offset(0)[0], c.length]]
@@ -73,26 +56,29 @@ def lexer(input_lines)
     tokens
   end
   .reduce([], :concat)
+
+  tokens
+  .filter_map { |token| lex_engine_number(input_lines, token) }
+  .filter { |_, symbols| symbols.length > 0 }
 end
 
-input_lines = input.split(/\n/)
-tokens = lexer(input_lines)
+engine_numbers = lexer(input)
 
-engine_numbers = tokens
-.filter_map { |token| parse_engine_number(input_lines, token) }
-.filter { |token| token[1].length > 0 }
+## First part of solution
+## get a list of all engine numbers and
+puts JSON.dump(engine_numbers.map { |engine_number, _| engine_number }.reduce(:+))
 
-# puts JSON.dump(engine_numbers)
-# puts JSON.dump(engine_numbers.map { |token| token[0] }.reduce(:+))
-
-engine_gear_numbers = engine_numbers.filter { |token| token[1].select { |symbol| symbol[2] == :gear }.first }
-
+## Second part of solution
+## Filter all the engine numbers that are next to gears
+## go through each engine numbers and their adjacent symbols and collect
+## a list of engine numbers for each gear symbol
+engine_gear_numbers = engine_numbers.filter { |_, symbols| symbols.select { |_, _, symbol| symbol == :gear }.first }
 engine_gears = {}
 
 for engine_gear_number in engine_gear_numbers do
   engine_gear_number => [engine_number, symbols]
 
-  for symbol in symbols.filter { |symbol| symbol[2] == :gear } do
+  for symbol in symbols.filter { |_, _, symbol| symbol == :gear } do
     symbol => [match_index, line_index, symbol_type]
     symbol_id = "#{match_index}-#{line_index}-#{symbol_type}"
 
@@ -104,4 +90,9 @@ for engine_gear_number in engine_gear_numbers do
   end
 end
 
-puts JSON.dump(engine_gears.to_a.filter { |key, value| value.length > 1 }.map { |_, value| value.reduce(:*) }.reduce(:+))
+puts JSON.dump(
+  engine_gears
+  .to_a.filter { |symbol_id, engine_numbers| engine_numbers.length > 1 }
+  .map { |_, engine_numbers| engine_numbers.reduce(:*) }
+  .reduce(:+)
+)
