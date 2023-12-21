@@ -29,7 +29,14 @@ lines = input.split(/\n/).map do |line|
   [red, green, blue, red + green + blue, game_number.to_i]
 end
 
-puts lines
+part_1_solution = lines
 .sort { |game1, game2| game2[3] <=> game1[3] }  # total the maxes and sort descending
 .filter_map { |game| game => [red, green, blue, _, _]; game[4] if red <= 12 and green <= 13 and blue <= 14 }
 .reduce(:+)
+
+part_2_solution = lines
+.map { |game| game => [red, green, blue, _, _]; red*green*blue }
+.reduce(:+)
+
+puts part_1_solution
+puts part_2_solution
