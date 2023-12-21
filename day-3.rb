@@ -6,7 +6,6 @@ file = File.open(INPUT_FILE)
 input = file.read
 file.close
 
-# is this a gear or symbol?
 def lex_symbol(input_str)
   if input_str and input_str.match?(/\.|\d/) then
     nil
@@ -17,7 +16,6 @@ def lex_symbol(input_str)
   end
 end
 
-# lex an engine_number, check adjacent characters on lines above and below, including it's own
 def lex_engine_number(input_lines, token)
   token => [engine_number, [line_number, match_index, match_length]]
   total_lines = input_lines.length
@@ -37,15 +35,14 @@ def lex_engine_number(input_lines, token)
       # check -1 ...<length_of_word>... +1
       input_lines[current_line]
       .slice(start_index, end_index)
-      .split('').filter_map.with_index { |char, index| symbol = lex_symbol(char); [current_line, index + start_index, symbol] if symbol }
+      .split('').filter_map.with_index { |char, offset| symbol = lex_symbol(char); [current_line, start_index + offset, symbol] if symbol }
     end
   end
 
   [engine_number, symbols.reduce(:concat)]
 end
 
-# Simple lexer returns list of engine_numbers that have symbols adjacent (by definition)
-# returns [[engine_number, symbols[]]]
+# returns list of engine_numbers that have symbols adjacent (by definition)
 def lexer(input)
   input_lines = input.split(/\n/)
   tokens = input_lines.map.with_index do |line, line_number|
@@ -65,7 +62,7 @@ end
 engine_numbers = lexer(input)
 
 ## First part of solution
-## get a list of all engine numbers and
+## get a list of all engine numbers and add them
 puts JSON.dump(engine_numbers.map { |engine_number, _| engine_number }.reduce(:+))
 
 ## Second part of solution
