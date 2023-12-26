@@ -11,5 +11,7 @@ number_map = {
 
 puts input.split(/\n/, -1).map { |line|
   decoded_line = line.scan(line_regex).flatten.compact.map { |x| number_map[x] || x.to_i }
-  [decoded_line[0], decoded_line[decoded_line.length - 1]].reverse.map.with_index { |x, i| x.to_i * (10 ** i) }.reduce(:+)
+  [decoded_line[0], decoded_line[decoded_line.length - 1]].reverse.map.with_index { |x, i|
+    x.to_i * (10**i)
+  }.reduce(:+)
 }.reduce(:+)
