@@ -32,8 +32,6 @@ def get_card_score(cache, cards, card_index)
   cache[card_index] = 1 + card_copies.map { |copy_card_index| get_card_score(cache, cards, copy_card_index) }.reduce(0, :+)
 end
 
-cards = lex_cards(input)
-
 def get_total_points(cards)
   cards.map{ |card| (2 ** (get_card_winning_numbers(card).length - 1)).ceil }.reduce(:+)
 end
@@ -47,5 +45,6 @@ def get_total_score(cards)
   total_scratchcards_won
 end
 
+cards = lex_cards(input)
 puts get_total_points(cards)
 puts get_total_score(cards)
