@@ -8,5 +8,5 @@ If I can get up to day 5, it's a win
 - [x] Day 1
 - [x] Day 2
 - [x] Day 3
-- [ ] Day 4
+- [x] Day 4
 - [ ] Day 5
